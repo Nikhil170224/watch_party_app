@@ -36,12 +36,8 @@ const io = new Server(server, {
   cors: { origin: allowedOrigins, methods: ["GET", "POST"] },
 });
 
-// const Room = require("./src/models/Room"); // Add this import at the top of server.js
-
 io.on("connection", (socket) => {
   console.log("⚡ User connected:", socket.id);
-
-  // ... inside io.on('connection') ...
 
   socket.on("send_message", async (data) => {
     try {
