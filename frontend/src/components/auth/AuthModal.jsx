@@ -1,7 +1,8 @@
 import { useState } from "react";
 import axios from "axios";
 import { XIcon } from "../ui/Icons";
-import { socket } from "../../socket"; // Adjust this path if your socket.js is elsewhere
+import { socket } from "../../socket";
+import { API_BASE } from "../../api/config";
 
 /**
  * Modal for logging in or signing up with Real Backend Integration
@@ -28,8 +29,8 @@ function AuthModal({ onClose, onLogin }) {
       // 1. Determine the correct backend endpoint
       const endpoint =
         mode === "login"
-          ? "http://localhost:4000/api/auth/login"
-          : "http://localhost:4000/api/auth/register";
+          ? `${API_BASE}/api/auth/login`
+          : `${API_BASE}/api/auth/register`;
 
       // 2. Make the API request
       const response = await axios.post(endpoint, {

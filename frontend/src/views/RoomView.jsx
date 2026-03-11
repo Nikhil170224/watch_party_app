@@ -1,11 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RoomHeader, VideoPlayer, ParticipantsPanel } from "../components/room";
 import { ChatPanel } from "../components/chat";
 import { useRoom } from "../hooks/useRoom";
-import { ROLES } from "../constants/data";
 
 export default function RoomView({ room, user, onLeave }) {
-  const MY_ROLE = ROLES.HOST; // demo: in production this comes from the server
   const [activeTab, setActiveTab] = useState("chat");
 
   const {
@@ -13,17 +11,34 @@ export default function RoomView({ room, user, onLeave }) {
     messages,
     videoUrl,
     playing,
+    myRole,
+    error,
+    setInitialParticipants,
     assignRole,
     removeParticipant,
     transferHost,
     sendMessage,
     changeVideo,
     togglePlaying,
-  } = useRoom(user);
+  } = useRoom(user, room?.code || room?.roomCode);
+
+  // Seed participants from the room data fetched by AppContext
+  useEffect(() => {
+    if (room?.participants) {
+      setInitialParticipants(room.participants);
+    }
+  }, [room?.participants, setInitialParticipants]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <RoomHeader room={room} myRole={MY_ROLE} onLeave={onLeave} />
+      <RoomHeader room={room} myRole={myRole} onLeave={onLeave} />
+
+      {/* Error toast */}
+      {error && (
+        <div className="mx-4 mt-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl border border-red-100 dark:border-red-900/50">
+          ⚠️ {error}
+        </div>
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         {/* Player + mobile tabs */}
@@ -31,7 +46,7 @@ export default function RoomView({ room, user, onLeave }) {
           <VideoPlayer
             videoUrl={videoUrl}
             playing={playing}
-            myRole={MY_ROLE}
+            myRole={myRole}
             onTogglePlay={togglePlaying}
             onChangeVideo={changeVideo}
           />
@@ -49,8 +64,8 @@ export default function RoomView({ room, user, onLeave }) {
           {/* Mobile panel */}
           <div className="xl:hidden flex-1 overflow-hidden">
             {activeTab === "chat"
-              ? <ChatPanel messages={messages} onSend={(text) => sendMessage(text, MY_ROLE)} />
-              : <ParticipantsPanel participants={participants} myRole={MY_ROLE} onAssignRole={assignRole} onRemove={removeParticipant} onTransferHost={transferHost} />
+              ? <ChatPanel messages={messages} onSend={(text) => sendMessage(text)} />
+              : <ParticipantsPanel participants={participants} myRole={myRole} onAssignRole={assignRole} onRemove={removeParticipant} onTransferHost={transferHost} />
             }
           </div>
         </div>
@@ -67,8 +82,8 @@ export default function RoomView({ room, user, onLeave }) {
           </div>
           <div className="flex-1 overflow-hidden">
             {activeTab === "chat"
-              ? <ChatPanel messages={messages} onSend={(text) => sendMessage(text, MY_ROLE)} />
-              : <ParticipantsPanel participants={participants} myRole={MY_ROLE} onAssignRole={assignRole} onRemove={removeParticipant} onTransferHost={transferHost} />
+              ? <ChatPanel messages={messages} onSend={(text) => sendMessage(text)} />
+              : <ParticipantsPanel participants={participants} myRole={myRole} onAssignRole={assignRole} onRemove={removeParticipant} onTransferHost={transferHost} />
             }
           </div>
         </div>

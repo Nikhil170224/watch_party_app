@@ -1,18 +1,16 @@
-import { useRef } from "react";
-import { generateRoomCode, buildInviteLink, getInitials, copyToClipboard } from "../utils/helpers";
+import { useState } from "react";
+import { getInitials, copyToClipboard } from "../utils/helpers";
 import Avatar from "../components/ui/Avatar";
 import RoleBadge from "../components/ui/RoleBadge";
 import { ROLES } from "../constants/data";
-import { useState } from "react";
 
 export default function CreateRoomView({ user, onCreateRoom }) {
   const [roomName, setRoomName] = useState("");
   const [privacy, setPrivacy]   = useState("public");
   const [maxUsers, setMaxUsers] = useState(10);
-  const roomCode = useRef(generateRoomCode()).current;
+  const [loading, setLoading]   = useState(false);
   const userId   = user?.id || "USR-???";
   const initials = user ? getInitials(user.name) : "??";
-  const inviteLink = buildInviteLink(roomCode);
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
@@ -42,16 +40,6 @@ export default function CreateRoomView({ user, onCreateRoom }) {
           <input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder="Friday Night Movies" className={inputCls} />
         </div>
 
-        {/* Room code */}
-        <div>
-          <label className={labelCls}>Room Code (auto-generated)</label>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 px-4 py-3 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 font-mono font-black text-red-600 dark:text-red-400 tracking-[0.3em] text-lg">
-              {roomCode}
-            </div>
-            <button onClick={() => copyToClipboard(roomCode)} className="px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">Copy</button>
-          </div>
-        </div>
 
         {/* Privacy */}
         <div>
@@ -73,22 +61,16 @@ export default function CreateRoomView({ user, onCreateRoom }) {
           <div className="flex justify-between text-xs text-gray-400 mt-1"><span>2</span><span>50</span></div>
         </div>
 
-        {/* Invite link */}
-        <div>
-          <label className={labelCls}>Shareable Invite Link</label>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs font-mono truncate">
-              {inviteLink}
-            </div>
-            <button onClick={() => copyToClipboard(inviteLink)} className="px-3 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-xl text-xs font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">Copy</button>
-          </div>
-        </div>
-
         <button
-          onClick={() => onCreateRoom({ code: roomCode, name: roomName || "My Watch Party" })}
-          className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black text-sm rounded-xl transition-all shadow-lg shadow-red-600/25 tracking-wide"
+          disabled={loading}
+          onClick={async () => {
+            setLoading(true);
+            await onCreateRoom({ name: roomName || "My Watch Party" });
+            setLoading(false);
+          }}
+          className={`w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black text-sm rounded-xl transition-all shadow-lg shadow-red-600/25 tracking-wide ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
         >
-          🎬 Create Room & Become Host
+          {loading ? "Creating..." : "🎬 Create Room & Become Host"}
         </button>
       </div>
     </div>

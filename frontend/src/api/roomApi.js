@@ -1,6 +1,7 @@
 import axios from "axios";
+import { API_BASE } from "./config";
 
-const API_URL = "http://localhost:4000/api/rooms";
+const API_URL = `${API_BASE}/api/rooms`;
 
 export const createRoom = async (username) => {
   const token = localStorage.getItem("token");

@@ -45,4 +45,18 @@ router.get("/:code", async (req, res) => {
   }
 });
 
+// @route   GET /api/rooms/:code/messages
+// @desc    Get chat history for a room
+router.get("/:code/messages", async (req, res) => {
+  try {
+    const Message = require("../models/message");
+    const messages = await Message.find({ roomCode: req.params.code })
+      .sort({ timestamp: 1 })
+      .limit(100);
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;

@@ -18,7 +18,10 @@ const server = http.createServer(app);
 connectDB();
 
 // Middleware
-app.use(cors());
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(",")
+  : ["*"];
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 // ROUTES
@@ -30,7 +33,7 @@ app.use(errorHandler);
 
 // Socket.IO Setup
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
+  cors: { origin: allowedOrigins, methods: ["GET", "POST"] },
 });
 
 // const Room = require("./src/models/Room"); // Add this import at the top of server.js
@@ -108,12 +111,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 3. CHAT MESSAGE
-  socket.on("send_message", (data) => {
-    io.to(data.roomCode).emit("receive_message", data);
-  });
-
-  // 4. PROMOTE TO MODERATOR
+  // 3. PROMOTE TO MODERATOR
   socket.on("promote_user", async ({ roomCode, adminId, targetUserId }) => {
     const room = await Room.findOne({ roomCode });
     const admin = room.participants.find(
