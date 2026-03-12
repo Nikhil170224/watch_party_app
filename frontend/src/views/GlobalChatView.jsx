@@ -1,9 +1,9 @@
 import { ChatPanel } from "../components/chat";
 import { useChat } from "../hooks/useChat";
-import { GLOBAL_CHAT_SEED, ROLES } from "../constants/data";
+import { ROLES } from "../constants/data";
 
 export default function GlobalChatView({ user }) {
-  const { messages, send } = useChat(GLOBAL_CHAT_SEED, user);
+  const { messages, send } = useChat([], user);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

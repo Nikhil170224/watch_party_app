@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { HeroClock, JoinRoom, MiniCalendar, ScheduleList } from "../components/home";
 import { ScheduleModal } from "../components/modals";
-import { DEFAULT_SCHEDULES } from "../constants/data";
-
 export default function HomeView({ onJoinRoom, onGoCreate }) {
   const [showSchedule, setShowSchedule] = useState(false);
-  const [schedules, setSchedules] = useState(DEFAULT_SCHEDULES);
+  const [schedules, setSchedules] = useState([]);
 
   const addSchedule = (s) => setSchedules((prev) => [...prev, s]);
   const removeSchedule = (i) => setSchedules((prev) => prev.filter((_, j) => j !== i));
