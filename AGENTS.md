@@ -8,7 +8,7 @@ WatchParty is a real-time YouTube watch party app. Users create/join rooms, watc
 
 ## Monorepo Structure
 
-This is a two-package monorepo with no workspace manager — `frontend/` and `backend/` are independent npm projects with separate `node_modules`.
+This is a two-package monorepo with no workspace manager — `frontend/` and `backend/` are independent npm projects with separate `node_modules`. Always `npm install` in each directory independently.
 
 ## Build & Run Commands
 
@@ -16,10 +16,9 @@ This is a two-package monorepo with no workspace manager — `frontend/` and `ba
 ```
 cd backend
 npm install
-node server.js            # production start
-npx nodemon server.js     # dev with hot reload
+npm start                 # production (node server.js)
+npm run dev               # dev with hot reload (nodemon)
 ```
-The backend has no `dev` script in package.json — use `npx nodemon server.js` directly.
 
 ### Frontend (React + Vite)
 ```
@@ -38,12 +37,14 @@ No linter or type checker is configured. The project uses plain JavaScript (Comm
 
 ## Environment Variables
 
-Backend requires a `.env` file in `backend/` with:
+Backend `.env` (in `backend/`, gitignored):
 - `PORT` — server port (default 4000)
 - `MONGODB_URI` — MongoDB connection string
 - `JWT_SECRET` — secret for signing JWT tokens
+- `CLIENT_URL` — comma-separated allowed origins for CORS (defaults to `*` if unset)
 
-The `.env` is gitignored. A template exists at the top of `backend/.env`.
+Frontend (set via Vite env or Vercel dashboard):
+- `VITE_API_BASE` — backend URL (defaults to `http://localhost:4000`)
 
 ## Architecture
 
@@ -51,9 +52,7 @@ The `.env` is gitignored. A template exists at the top of `backend/.env`.
 
 Single entry point: `server.js` — creates Express app, connects MongoDB, mounts REST routes, and initializes Socket.IO on the same HTTP server.
 
-**Dual database design:**
-- **MongoDB (via Mongoose)** — used for all persistent data: users, rooms, chat messages. Connection in `src/config/mongo.js`.
-- **PostgreSQL (`pg`)** — listed as a dependency but not currently wired up anywhere in the code.
+**Database:** MongoDB via Mongoose for all persistent data (users, rooms, chat messages). Connection in `src/config/mongo.js`. Note: `pg` (PostgreSQL) is listed as a dependency but is not wired up anywhere.
 
 **REST API routes** (mounted under `app.use`):
 - `/api/auth` → `src/routes/authRoutes.js` — register and login (JWT-based)
@@ -62,7 +61,7 @@ Single entry point: `server.js` — creates Express app, connects MongoDB, mount
 **Socket.IO events** (defined inline in `server.js`):
 - `join_room` — joins a socket room, adds participant to DB, sends current video state to new joiner
 - `video_action` — play/pause/seek; only Host or Moderator can control; persists state to Room document
-- `send_message` — saves message to MongoDB, broadcasts to room (note: this handler is registered twice in server.js — once with DB persistence at line 43 and once as a simple broadcast at line 112)
+- `send_message` — saves message to MongoDB, broadcasts to room
 - `promote_user` — Host can promote a participant to Moderator
 - `disconnect` — logs disconnection
 
@@ -74,6 +73,8 @@ Single entry point: `server.js` — creates Express app, connects MongoDB, mount
 **Middleware** (`src/middleware/`):
 - `auth.js` — `protect` middleware: extracts Bearer JWT from Authorization header, verifies with JWT_SECRET, attaches `req.user`
 - `errorHandler.js` — global error handler; hides stack traces in production
+
+**Empty scaffolding:** `src/services/` and `src/socket/` directories exist but contain no files yet.
 
 ### Frontend (`frontend/`)
 
@@ -95,27 +96,23 @@ React 18 SPA with Vite bundler and Tailwind CSS. No router library — navigatio
 - `useDarkMode` — dark mode toggle
 
 **Socket.IO client** (`socket.js`):
-- Singleton socket instance pointing to `http://localhost:4000` with `autoConnect: false`
-- The socket is imported but real-time integration with the hooks/context is not yet wired — the frontend currently operates on mock data
+- Singleton socket instance using `API_BASE` from `api/config.js` with `autoConnect: false`
+- Socket connects on login (in `AppContext` auto-login and `AuthModal`), disconnects on logout
+- Hooks/views have not yet fully wired real-time socket events — the frontend still relies on mock data for participants and messages
 
 **API layer** (`api/roomApi.js`):
 - `createRoom(username)` — POST to `/api/rooms/create` with JWT from localStorage
 - `getRoomDetails(roomCode)` — GET room by code
+- Base URL centralized in `api/config.js` (`API_BASE`); override via `VITE_API_BASE` for production
 
 **Role system** (`constants/data.js`):
 - Three roles: `Host`, `Moderator`, `Participant`
 - Host/Moderator can control video playback; only Host can promote users or manage participants
 - `RoomView` currently hardcodes `MY_ROLE = ROLES.HOST` for demo purposes
 
-**Utilities** — split across three files with some duplication:
-- `utils/helpers.js` — general helpers (room code, YouTube ID extraction, initials, time formatting, clipboard)
-- `utils/roomUtils.js` — duplicates `generateRoomCode`, `extractYouTubeId`, `buildEmbedUrl`, `buildInviteLink` from helpers.js
-- `utils/userUtils.js` — duplicates `getInitials`, `generateUserId`, `formatTime` from helpers.js; adds `canControl`/`canManage` role checks
-
-## API Base URL
-
-All API/socket URLs are centralized in `frontend/src/api/config.js` (`API_BASE`). Change this single value when deploying to production.
+**Known duplication in utilities:**
+- `utils/helpers.js`, `utils/roomUtils.js`, and `utils/userUtils.js` contain overlapping functions (`generateRoomCode`, `extractYouTubeId`, `getInitials`, `formatTime`, etc.). `userUtils.js` adds `canControl`/`canManage` role-check helpers.
 
 ## Deployment
 
-Frontend is deployed on Vercel with SPA rewrites (`vercel.json`). Backend runs on a separate server (port 4000 by default).
+Frontend is deployed on Vercel with SPA rewrites (`frontend/vercel.json`). Backend runs on a separate server (port 4000 by default).

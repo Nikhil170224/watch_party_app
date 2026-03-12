@@ -20,7 +20,7 @@ connectDB();
 // Middleware
 const allowedOrigins = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(",")
-  : ["*"];
+  : "*";
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
@@ -59,6 +59,11 @@ io.on("connection", (socket) => {
   // 1. JOIN ROOM & ASSIGN ROLE
   socket.on("join_room", async ({ roomCode, userId, username }) => {
     socket.join(roomCode);
+
+    // Track user info on socket for disconnect cleanup
+    socket.userId = userId;
+    socket.username = username;
+    socket.roomCode = roomCode;
 
     // Find room or create a temporary state
     let room = await Room.findOne({ roomCode });
@@ -129,8 +134,63 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("disconnect", () => {
-    console.log("🔥 User disconnected");
+  // 4. CHANGE VIDEO (sync across all clients)
+  socket.on("change_video", async ({ roomCode, userId, videoId }) => {
+    const room = await Room.findOne({ roomCode });
+    if (!room) return;
+
+    const user = room.participants.find((p) => p.userId.toString() === userId);
+    if (user && (user.role === "Host" || user.role === "Moderator")) {
+      room.currentVideoId = videoId;
+      room.currentTime = 0;
+      room.isPlaying = false;
+      await room.save();
+
+      // Broadcast to everyone else in the room
+      socket.to(roomCode).emit("video_changed", { videoId });
+    } else {
+      socket.emit("error_message", "You do not have permission to change the video.");
+    }
+  });
+
+  // 5. LEAVE ROOM
+  socket.on("leave_room", async ({ roomCode, userId }) => {
+    try {
+      const room = await Room.findOne({ roomCode });
+      if (room) {
+        room.participants = room.participants.filter(
+          (p) => p.userId.toString() !== userId,
+        );
+        await room.save();
+      }
+      socket.leave(roomCode);
+      io.to(roomCode).emit("user_left", { userId, username: socket.username });
+      console.log(`👋 ${socket.username} left ${roomCode}`);
+    } catch (err) {
+      console.log("Leave room error:", err);
+    }
+  });
+
+  // DISCONNECT — clean up participant from any room they were in
+  socket.on("disconnect", async () => {
+    console.log("🔥 User disconnected:", socket.id);
+    try {
+      if (socket.roomCode && socket.userId) {
+        const room = await Room.findOne({ roomCode: socket.roomCode });
+        if (room) {
+          room.participants = room.participants.filter(
+            (p) => p.userId.toString() !== socket.userId,
+          );
+          await room.save();
+          io.to(socket.roomCode).emit("user_left", {
+            userId: socket.userId,
+            username: socket.username,
+          });
+        }
+      }
+    } catch (err) {
+      console.log("Disconnect cleanup error:", err);
+    }
   });
 });
 

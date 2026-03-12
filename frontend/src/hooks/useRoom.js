@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { socket } from "../socket";
 import { ROLES } from "../constants/data";
-import { getInitials, formatTime, buildEmbedUrl } from "../utils/helpers";
+import { getInitials, formatTime, buildEmbedUrl, extractYouTubeId } from "../utils/helpers";
 import axios from "axios";
 import { API_BASE } from "../api/config";
 
@@ -103,6 +103,16 @@ export function useRoom(user, roomCode) {
       }
     };
 
+    // Video changed by another Host/Moderator
+    const onVideoChanged = ({ videoId }) => {
+      if (videoId) setVideoUrl(buildEmbedUrl(videoId, false));
+    };
+
+    // A user left the room
+    const onUserLeft = ({ userId: leftId }) => {
+      setParticipants((prev) => prev.filter((p) => p.id !== leftId));
+    };
+
     // Error from server (e.g. permission denied)
     const onErrorMessage = (msg) => {
       setError(msg);
@@ -114,14 +124,21 @@ export function useRoom(user, roomCode) {
     socket.on("receive_message",   onReceiveMessage);
     socket.on("video_state_update", onVideoStateUpdate);
     socket.on("role_updated",      onRoleUpdated);
+    socket.on("video_changed",     onVideoChanged);
+    socket.on("user_left",         onUserLeft);
     socket.on("error_message",     onErrorMessage);
 
     return () => {
+      // Notify server that this user is leaving the room
+      socket.emit("leave_room", { roomCode, userId: user.id });
+
       socket.off("room_state",        onRoomState);
       socket.off("user_joined",       onUserJoined);
       socket.off("receive_message",   onReceiveMessage);
       socket.off("video_state_update", onVideoStateUpdate);
       socket.off("role_updated",      onRoleUpdated);
+      socket.off("video_changed",     onVideoChanged);
+      socket.off("user_left",         onUserLeft);
       socket.off("error_message",     onErrorMessage);
     };
   }, [roomCode, user]);
@@ -173,6 +190,11 @@ export function useRoom(user, roomCode) {
 
   const changeVideo = (embedUrl) => {
     setVideoUrl(embedUrl);
+    // Sync video change to other clients via server
+    const videoId = extractYouTubeId(embedUrl);
+    if (videoId && user && roomCode) {
+      socket.emit("change_video", { roomCode, userId: user.id, videoId });
+    }
   };
 
   const promoteUser = (targetUserId) => {
