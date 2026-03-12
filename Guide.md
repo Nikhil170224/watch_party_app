@@ -1,7 +1,3 @@
-# AGENTS.md
-
-This file provides guidance to WARP (warp.dev) when working with code in this repository.
-
 ## Project Overview
 
 WatchParty is a real-time YouTube watch party app. Users create/join rooms, watch synced YouTube videos, chat, and manage participants with role-based permissions (Host, Moderator, Participant). Live deployment at https://ytwatchparty.vercel.app/.
